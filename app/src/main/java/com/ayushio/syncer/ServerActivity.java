@@ -1,25 +1,22 @@
 package com.ayushio.syncer;
 
-import android.app.Activity;
-import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.view.View;
-import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
 import java.util.Objects;
 
-public class ServerActivity extends Activity implements /*OnClickListener,*/UDPserver {
+public class ServerActivity extends AppCompatActivity implements /*OnClickListener,*/UDPserver {
 
     private TextView tv;
     private MyHandler mHandler;
@@ -35,26 +32,37 @@ public class ServerActivity extends Activity implements /*OnClickListener,*/UDPs
         mHandler = new MyHandler();
         tv = (TextView)findViewById(R.id.textView1);
 
-        Button buttonStart = findViewById(R.id.start_music);
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        WifiInfo wifiInfo = wifiManager.getConnectionInfo();
+        int ipAddress = wifiInfo.getIpAddress();
+        String strIPAddess =
+                ((ipAddress >> 0) & 0xFF) + "." +
+                        ((ipAddress >> 8) & 0xFF) + "." +
+                        ((ipAddress >> 16) & 0xFF) + "." +
+                        ((ipAddress >> 24) & 0xFF);
 
-        buttonStart.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                audioPlay(msec);
-            }
-        });
+        tv.setText("My IP address is " + strIPAddess.toString());
 
-        Button buttonStop = findViewById(R.id.stop_music);
-
-        buttonStop.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mediaPlayer != null){
-                    //msec = mediaPlayer.getCurrentPosition();
-                    audioStop();
-                }
-            }
-        });
+//        Button buttonStart = findViewById(R.id.start_music);
+//
+//        buttonStart.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                audioPlay(msec);
+//            }
+//        });
+//
+//        Button buttonStop = findViewById(R.id.stop_music);
+//
+//        buttonStop.setOnClickListener(new View.OnClickListener() {
+//            @Override
+//            public void onClick(View v) {
+//                if (mediaPlayer != null){
+//                    //msec = mediaPlayer.getCurrentPosition();
+//                    audioStop();
+//                }
+//            }
+//        });
 
         mThread = new MyThread();
         mThread.start();
@@ -64,15 +72,15 @@ public class ServerActivity extends Activity implements /*OnClickListener,*/UDPs
     class MyThread extends Thread{
         public void run(){
             Log.d("thread", "thread run");
-            UDP udp = new UDP(ServerActivity.this);		//������MainActivity��UDP��R�Â���
-            udp.boot(50000);
+            UDP udp = new UDP(ServerActivity.this);
+            udp.boot(52000);
 
         }
     }
     @Override
     public void recv(String host, int port, String data) {
         Log.d("recv", "checkrcv");
-        Message msg = Message.obtain();						//handler�Ńf�[�^��n���BsetText���ƃA�v����������
+        Message msg = Message.obtain();
         msg.obj = new String(data);
         mHandler.sendMessage(msg);
 
@@ -86,10 +94,14 @@ public class ServerActivity extends Activity implements /*OnClickListener,*/UDPs
             str = str.replaceAll("\n", "");
             String[] command = str.split(",", 0);
             if (Objects.equals(command[0], "start")){
-                audioPlay(Integer.parseInt(command[1]));
+                if (mediaPlayer == null){
+                    audioPlay(Integer.parseInt(command[1]));
+                    tv.setText(command[1].toString() + "msecから再生中");
+                }
             }else if(Objects.equals(command[0], "stop")){
                 if (mediaPlayer != null){
                     audioStop();
+                    tv.setText("再生を停止しました");
                 }
             }
         }

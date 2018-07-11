@@ -6,7 +6,7 @@ import java.net.InetAddress;
 
 class Client {
     public static void main(String[] args) {
-        new UDP().send("127.0.0.1", 50000, "hoge");
+        new UDP().send("127.0.0.1", 52000, "hoge");
     }
 }
 

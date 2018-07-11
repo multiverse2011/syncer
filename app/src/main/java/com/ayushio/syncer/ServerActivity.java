@@ -11,61 +11,55 @@ import android.view.MenuItem;
 import android.widget.Button;
 import android.widget.TextView;
 
-public class ServerActivity extends Activity implements UDPserver{
+public class ServerActivity extends Activity implements /*OnClickListener,*/UDPserver {
 
     private Button bt;
     private TextView tv;
-    private int count;
-    UDP udp;
-    private MyThread mThread;
     private MyHandler mHandler;
-
+    private MyThread mThread;
+    UDP udp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_server);
+
         mHandler = new MyHandler();
-
-        Intent intent = this.getIntent();
-
         tv = (TextView)findViewById(R.id.textView1);
-        bt = (Button)findViewById(R.id.button1);
-        //bt.setOnClickListener(this);
-        udp = new UDP(this);
-        new MyThread().start();
-    }
+		/*rctv = (TextView)findViewById(R.id.textView2);
+		bt = (Button)findViewById(R.id.button1);
+		bt.setOnClickListener(this);*/
 
+        mThread = new MyThread();
+        mThread.start();				//�X���b�h��p�������N���X��NEW������K��start()����s����
+
+    }
 
     class MyThread extends Thread{
         public void run(){
-            udp = new UDP();
+            Log.d("thread", "thread run");
+            UDP udp = new UDP(ServerActivity.this);		//������MainActivity��UDP��R�Â���
             udp.boot(50000);
+
         }
     }
-
-    class MyHandler extends Handler {
-        public void hanleMessage(Message msg){
-            String text = msg.obj.toString();
-            Log.d("called", "msg");
-            tv.setText(text);
-        }
-    }
-
-    interface UDPserver {
-        public void recv(String host, int port, String data);
-    }
-
     @Override
     public void recv(String host, int port, String data) {
-        // TODO Auto-generated method stub
-
-        String text = "data: " + data + " " + host + " ["+ port + "]" + "\n";
-        Message msg = Message.obtain();
-        msg.what=1;
-        msg.obj = new String(text);
+        Log.d("recv", "checkrcv");
+        Message msg = Message.obtain();						//handler�Ńf�[�^��n���BsetText���ƃA�v����������
+        msg.obj = new String(data);
         mHandler.sendMessage(msg);
 
-        new MyThread().start();
+        mThread = new MyThread();
+        mThread.start();
+    }
+    class MyHandler extends Handler {
+        public void handleMessage(Message msg) {
+            Log.d("Success", "success!");
+            String str = msg.obj.toString();
+            str = str.replaceAll("\n", "");
+            int msec = Integer.parseInt(str);
+            tv.setText(String.valueOf(msec));								//recv()�Ŏ󂯎����data������ĕ\��
+        }
     }
 }

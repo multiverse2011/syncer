@@ -2,22 +2,30 @@ package com.ayushio.syncer;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import android.widget.Toast;
+
+import java.io.IOException;
+import java.util.Objects;
 
 public class ServerActivity extends Activity implements /*OnClickListener,*/UDPserver {
 
-    private Button bt;
     private TextView tv;
     private MyHandler mHandler;
     private MyThread mThread;
-    UDP udp;
+    private MediaPlayer mediaPlayer;
+    private int msec = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,12 +34,30 @@ public class ServerActivity extends Activity implements /*OnClickListener,*/UDPs
 
         mHandler = new MyHandler();
         tv = (TextView)findViewById(R.id.textView1);
-		/*rctv = (TextView)findViewById(R.id.textView2);
-		bt = (Button)findViewById(R.id.button1);
-		bt.setOnClickListener(this);*/
+
+        Button buttonStart = findViewById(R.id.start_music);
+
+        buttonStart.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                audioPlay(msec);
+            }
+        });
+
+        Button buttonStop = findViewById(R.id.stop_music);
+
+        buttonStop.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mediaPlayer != null){
+                    //msec = mediaPlayer.getCurrentPosition();
+                    audioStop();
+                }
+            }
+        });
 
         mThread = new MyThread();
-        mThread.start();				//�X���b�h��p�������N���X��NEW������K��start()����s����
+        mThread.start();
 
     }
 
@@ -58,8 +84,86 @@ public class ServerActivity extends Activity implements /*OnClickListener,*/UDPs
             Log.d("Success", "success!");
             String str = msg.obj.toString();
             str = str.replaceAll("\n", "");
-            int msec = Integer.parseInt(str);
-            tv.setText(String.valueOf(msec));								//recv()�Ŏ󂯎����data������ĕ\��
+            String[] command = str.split(",", 0);
+            if (Objects.equals(command[0], "start")){
+                audioPlay(Integer.parseInt(command[1]));
+            }else if(Objects.equals(command[0], "stop")){
+                if (mediaPlayer != null){
+                    audioStop();
+                }
+            }
         }
+    }
+
+    private boolean audioSetup(){
+        boolean fileCheck = false;
+
+        // インタンスを生成
+        mediaPlayer = new MediaPlayer();
+
+        //音楽ファイル名, あるいはパス
+        String filePath = "music.mp3";
+
+        // assetsから mp3 ファイルを読み込み
+        try(AssetFileDescriptor afdescripter = getAssets().openFd(filePath);)
+        {
+            // MediaPlayerに読み込んだ音楽ファイルを指定
+            mediaPlayer.setDataSource(afdescripter.getFileDescriptor(),
+                    afdescripter.getStartOffset(),
+                    afdescripter.getLength());
+            // 音量調整を端末のボタンに任せる
+            setVolumeControlStream(AudioManager.STREAM_MUSIC);
+            mediaPlayer.prepare();
+            fileCheck = true;
+        } catch (IOException e1) {
+            e1.printStackTrace();
+        }
+
+        return fileCheck;
+    }
+    private void audioPlay(int sec) {
+
+        if (mediaPlayer == null) {
+            // audio ファイルを読出し
+            if (audioSetup()){
+                Toast.makeText(getApplication(), "Read audio file", Toast.LENGTH_SHORT).show();
+            }
+            else{
+                Toast.makeText(getApplication(), "Error: read audio file", Toast.LENGTH_SHORT).show();
+                return;
+            }
+        }
+        else{
+            // 繰り返し再生する場合
+            // リソースを開放しないとメモリがパンクして死ぬ
+            mediaPlayer.stop();
+            mediaPlayer.reset();
+            // リソースの解放
+            mediaPlayer.release();
+        }
+
+        // 再生する
+        mediaPlayer.seekTo(sec);
+        mediaPlayer.start();
+
+        // 終了を検知するリスナー
+        mediaPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                Log.d("debug","end of audio");
+                audioStop();
+            }
+        });
+    }
+
+    private void audioStop() {
+        // 再生終了
+        mediaPlayer.stop();
+        // リセット
+        mediaPlayer.reset();
+        // リソースの解放
+        mediaPlayer.release();
+
+        mediaPlayer = null;
     }
 }
